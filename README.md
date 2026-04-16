@@ -1,5 +1,3 @@
-# Precision-Power
-
 # Dynamic Power Balancer (DPB)
 A bare-metal, hyper-optimized Windows background service that dynamically balances CPU and GPU power limits in real-time. Designed specifically for Small Form Factor (SFF) PCs, laptops, and thermally-constrained systems, DPB ensures your system never exceeds its total power supply budget while maximizing gaming and rendering performance.
 
