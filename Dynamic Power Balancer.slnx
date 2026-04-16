@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Dynamic Power Balancer.vcxproj" Id="28ed0d67-7ad4-406b-8d06-4e9113840a5a" />
+</Solution>
