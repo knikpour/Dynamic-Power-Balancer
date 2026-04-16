@@ -20,7 +20,7 @@ If you have a 250W power supply, a 150W GPU, and a 125W CPU, running both at 100
 Instead of statically crippling your CPU in the BIOS, DPB allows your CPU to boost to its maximum potential during CPU-heavy tasks, seamlessly throttling it only when the GPU demands the wattage.
 
 # Extreme Optimizations
-This software is engineered to consume effectively 0.00% CPU, < 0.5MB RAM, and 0 disk I/O while running.
+This software is engineered to consume effectively 0.00% CPU, < 1MB RAM, and 0 disk I/O while running.
 
 The balancing loop: contains zero heap allocations and uses strictly integer-based math. Event-Driven OS Hooks drop expensive Ring-0 polling in favor of PowrProf callbacks. Hardware states (Undervolts/Turbo Ratios) are re-applied exactly and only when the NT Kernel broadcasts a Wake-From-Sleep event.
 
