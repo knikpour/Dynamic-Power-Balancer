@@ -1,7 +1,78 @@
-# Prerequisites
-*.d
+# ==============================================================================
+# Visual Studio 2026
+# ==============================================================================
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.sln.xml
 
-# Compiled Object files
+# ==============================================================================
+# Build Output Directories
+# ==============================================================================
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+[Bb]uild/
+bld/
+
+# ==============================================================================
+# Cache, Database, and IntelliSense Files
+# ==============================================================================
+*.aps
+*.ncb
+*.opendb
+*.db
+*.sqlite
+*.ipch
+*.vssscc
+*.vshost.exe
+*.vshost.exe.config
+*.vshost.exe.manifest
+
+# ==============================================================================
+# Logs and Build Metrics
+# ==============================================================================
+*.log
+*.tlog
+*.lastbuildstate
+*.vsmetrics
+*.err
+*.wrn
+
+# ==============================================================================
+# Package Managers
+# ==============================================================================
+packages/
+*.nupkg
+vcpkg_installed/
+vcpkg.cmd
+vcpkg.exe
+project.lock.json
+project.assets.json
+
+# ==============================================================================
+# Profiler, Testing, and Code Coverage
+# ==============================================================================
+*.psess
+*.vsp
+*.vspx
+*.sap
+TestResults/
+*.coverage
+*.coveragexml
+
+# ==============================================================================
+# Original Base: Compiled Object / Linker Files
+# ==============================================================================
+*.d
 *.slo
 *.lo
 *.o
@@ -13,9 +84,13 @@
 
 # Linker files
 *.ilk
+*.res
+*.exp
+*.map
 
 # Debugger Files
 *.pdb
+*.idb
 
 # Compiled Dynamic libraries
 *.so
@@ -37,5 +112,17 @@
 *.out
 *.app
 
-# debug information files
+# Debug information files
 *.dwo
+
+# ==============================================================================
+# OS Generated Clutter
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+ehthumbs_vista.db
+[Tt]humbs.db
