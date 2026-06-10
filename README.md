@@ -30,7 +30,7 @@ Adaptive Polling: Dynamically drops the polling rate from 1,000ms to 5,000ms whe
 
 Processor Affinity: Supports locking the background loop to a specific CPU core (e.g., E-Cores).
 
-# Configuration6
+# Configuration
 Because DPB relies on the WinRing0x64.sys driver to write directly to hardware registers, Windows Core Isolation must be disabled. Modern Windows will block this driver by default. Windows Defender may also classifiy those files as malware.
 
 On first launch, DPB generates a config.ini file in its root directory. You can configure:
