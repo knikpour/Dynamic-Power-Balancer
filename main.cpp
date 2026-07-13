@@ -142,22 +142,33 @@ struct PrecalcMSR {
 };
 
 struct HardwareState {
+    bool applyOffsets = true;
+    bool applyIccMax = true;
+    bool applyRatios = true;
+
     PrecalcMSR voltageOffsets[5];
     PrecalcMSR iccMaxLimits[5];
     PrecalcMSR turboRatios;
 };
 
 struct AppConfig {
+    // Feature Toggles
+    bool enablePowerBalancing = true;
+    bool enableAffinity = false;
+    bool enableUndervolting = true;
+    bool enableIccMaxLimits = true;
+    bool enableTurboRatios = true;
+
     double totalSystemBudget = 220.0;
     DWORD cpuMaxWatts = 65;
     DWORD cpuMinWatts = 15;
 
     DWORD pollingRateMs = 1000;
-    DWORD idlePollingRateMs = 5000;     // NEW: Slower polling when GPU is idle
-    double gpuIdleWatts = 30.0;         // NEW: Threshold to trigger idle polling
+    DWORD idlePollingRateMs = 5000;
+    double gpuIdleWatts = 30.0;
     DWORD timerToleranceMs = 50;
 
-    DWORD_PTR affinityMask = 0;         // NEW: Core pinning mask (0 = OS Default)
+    DWORD_PTR affinityMask = 0;
 
     double offsets[5] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
     double iccMax[5] = { 105.0, 105.0, 105.0, 105.0, 105.0 };
@@ -240,7 +251,15 @@ AppConfig LoadConfig(MSRWriter& cpu) {
         newConfig << "# Note: You must restart the program for changes to take effect.\n";
         newConfig << "# ==================================================================\n\n";
 
-        newConfig << "# --- Global Power Settings ---\n";
+        newConfig << "# --- Feature Toggles (1 = Enabled, 0 = Disabled) ---\n";
+        newConfig << "ENABLE_POWER_BALANCING=1\n";
+        newConfig << "ENABLE_AFFINITY=0\n";
+        newConfig << "ENABLE_UNDERVOLTING=1\n";
+        newConfig << "ENABLE_ICCMAX_LIMITS=1\n";
+        newConfig << "ENABLE_TURBO_RATIOS=1\n";
+        newConfig << "ENABLE_LOGGING=1\n\n";
+
+        newConfig << "# --- Global Power Settings (Requires ENABLE_POWER_BALANCING=1) ---\n";
         newConfig << "# TOTAL_SYSTEM_BUDGET: The absolute maximum wattage your system (CPU + GPU) is allowed to pull.\n";
         newConfig << "TOTAL_SYSTEM_BUDGET=220.0\n\n";
 
@@ -263,14 +282,12 @@ AppConfig LoadConfig(MSRWriter& cpu) {
         newConfig << "# TIMER_TOLERANCE_MS: The OS timer coalescing window. Allows the CPU to group wake-ups (50-100ms recommended).\n";
         newConfig << "TIMER_TOLERANCE_MS=50\n\n";
 
+        newConfig << "# --- Process Affinity (Requires ENABLE_AFFINITY=1) ---\n";
         newConfig << "# AFFINITY_MASK (Hex): Locks the program to specific CPU cores. 0x0 = OS Default (Any core).\n";
         newConfig << "# Example: 0x8000 pins to Core 15. 0x1 pins to Core 0.\n";
         newConfig << "AFFINITY_MASK=0x0\n\n";
 
-        newConfig << "# ENABLE_LOGGING: Set to 1 to enable writing to balancer.log, 0 to disable.\n";
-        newConfig << "ENABLE_LOGGING=1\n\n";
-
-        newConfig << "# --- Undervolting (Millivolts) ---\n";
+        newConfig << "# --- Undervolting (Millivolts) (Requires ENABLE_UNDERVOLTING=1) ---\n";
         newConfig << "# Enter values as negative numbers to undervolt (e.g., -50.0). Max offset is -500.0.\n";
         newConfig << "OFFSET_CPU_CORE_MV=0.0\n";
         newConfig << "OFFSET_GPU_MV=0.0\n";
@@ -278,7 +295,7 @@ AppConfig LoadConfig(MSRWriter& cpu) {
         newConfig << "OFFSET_SYSTEM_AGENT_MV=0.0\n";
         newConfig << "OFFSET_ANALOG_IO_MV=0.0\n\n";
 
-        newConfig << "# --- Current Limits (Amps) ---\n";
+        newConfig << "# --- Current Limits (Amps) (Requires ENABLE_ICCMAX_LIMITS=1) ---\n";
         newConfig << "# IccMax limits for each plane. Hardware default is usually around 105.0A, Max is 511.75A.\n";
         newConfig << "ICCMAX_CPU_CORE_A=105.0\n";
         newConfig << "ICCMAX_GPU_A=105.0\n";
@@ -286,7 +303,7 @@ AppConfig LoadConfig(MSRWriter& cpu) {
         newConfig << "ICCMAX_SYSTEM_AGENT_A=105.0\n";
         newConfig << "ICCMAX_ANALOG_IO_A=105.0\n\n";
 
-        newConfig << "# --- Turbo Ratios ---\n";
+        newConfig << "# --- Turbo Ratios (Requires ENABLE_TURBO_RATIOS=1) ---\n";
         newConfig << "# Max CPU multiplier based on the number of active cores (e.g., 40 = 4.0 GHz).\n";
         for (int i = 0; i < 8; ++i) {
             newConfig << "RATIO_" << (i + 1) << "_CORE=" << cfg.coreRatios[i] << "\n";
@@ -305,7 +322,16 @@ AppConfig LoadConfig(MSRWriter& cpu) {
             val.erase(std::remove_if(val.begin(), val.end(), ::isspace), val.end());
 
             try {
-                if (key == "TOTAL_SYSTEM_BUDGET") cfg.totalSystemBudget = std::stod(val);
+                // Feature Toggles
+                if (key == "ENABLE_POWER_BALANCING") cfg.enablePowerBalancing = (val == "1" || val == "true" || val == "TRUE");
+                else if (key == "ENABLE_AFFINITY") cfg.enableAffinity = (val == "1" || val == "true" || val == "TRUE");
+                else if (key == "ENABLE_UNDERVOLTING") cfg.enableUndervolting = (val == "1" || val == "true" || val == "TRUE");
+                else if (key == "ENABLE_ICCMAX_LIMITS") cfg.enableIccMaxLimits = (val == "1" || val == "true" || val == "TRUE");
+                else if (key == "ENABLE_TURBO_RATIOS") cfg.enableTurboRatios = (val == "1" || val == "true" || val == "TRUE");
+                else if (key == "ENABLE_LOGGING") g_EnableLogging = (val == "1" || val == "true" || val == "TRUE");
+
+                // Settings
+                else if (key == "TOTAL_SYSTEM_BUDGET") cfg.totalSystemBudget = std::stod(val);
                 else if (key == "CPU_MAX_WATTS") cfg.cpuMaxWatts = std::stoul(val);
                 else if (key == "CPU_MIN_WATTS") cfg.cpuMinWatts = std::stoul(val);
                 else if (key == "POLLING_RATE_MS") cfg.pollingRateMs = std::stoul(val);
@@ -313,7 +339,6 @@ AppConfig LoadConfig(MSRWriter& cpu) {
                 else if (key == "GPU_IDLE_WATTS_THRESHOLD") cfg.gpuIdleWatts = std::stod(val);
                 else if (key == "TIMER_TOLERANCE_MS") cfg.timerToleranceMs = std::stoul(val);
                 else if (key == "AFFINITY_MASK") cfg.affinityMask = std::stoull(val, nullptr, 16);
-                else if (key == "ENABLE_LOGGING") g_EnableLogging = (val == "1" || val == "true" || val == "TRUE");
 
                 else if (key == "OFFSET_CPU_CORE_MV") cfg.offsets[0] = std::stod(val);
                 else if (key == "OFFSET_GPU_MV") cfg.offsets[1] = std::stod(val);
@@ -340,6 +365,12 @@ AppConfig LoadConfig(MSRWriter& cpu) {
 
 HardwareState CompileHardwareState(const AppConfig& cfg) {
     HardwareState state;
+
+    // Copy logical feature toggles to the hardware state struct
+    state.applyOffsets = cfg.enableUndervolting;
+    state.applyIccMax = cfg.enableIccMaxLimits;
+    state.applyRatios = cfg.enableTurboRatios;
+
     for (int i = 0; i < 5; i++) {
         double off = cfg.offsets[i];
         if (off > 0.0) off = 0.0;
@@ -446,7 +477,7 @@ int main() {
         // --- 2. OS Task Scheduling Optimizations ---
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
 
-        if (config.affinityMask != 0) {
+        if (config.enableAffinity && config.affinityMask != 0) {
             if (SetProcessAffinityMask(GetCurrentProcess(), config.affinityMask)) {
                 LogFast("Core Affinity applied: Mask 0x%llX", config.affinityMask);
             }
@@ -456,10 +487,8 @@ int main() {
         }
 
         // --- 3. Memory Paging Optimizations ---
-        // Purge unnecessary initialization data from physical RAM
         SetProcessWorkingSetSize(GetCurrentProcess(), (SIZE_T)-1, (SIZE_T)-1);
 
-        // Lock the hot-path variables strictly into physical RAM so they never page to disk
         VirtualLock(&config, sizeof(AppConfig));
         VirtualLock(&precompiledState, sizeof(HardwareState));
         VirtualLock(&totalBudgetMw, sizeof(totalBudgetMw));
@@ -476,42 +505,46 @@ int main() {
         while (true) {
             if (g_HardwareStateNeedsReset) {
                 for (int i = 0; i < 5; i++) {
-                    cpu.WritePrecalc(0x150, precompiledState.voltageOffsets[i]);
-                    cpu.WritePrecalc(0x150, precompiledState.iccMaxLimits[i]);
+                    if (precompiledState.applyOffsets) cpu.WritePrecalc(0x150, precompiledState.voltageOffsets[i]);
+                    if (precompiledState.applyIccMax) cpu.WritePrecalc(0x150, precompiledState.iccMaxLimits[i]);
                 }
-                cpu.WritePrecalc(0x1AD, precompiledState.turboRatios);
+                if (precompiledState.applyRatios) cpu.WritePrecalc(0x1AD, precompiledState.turboRatios);
                 g_HardwareStateNeedsReset = false;
                 LogFast("Hardware states applied (Startup/Wake Event).");
             }
 
-            unsigned int gpuMw = gpu.GetPowerMilliWatts();
-            DWORD targetCpuWatts;
+            unsigned int gpuMw = 0;
+            DWORD currentSleepTimeMs = config.idlePollingRateMs;
 
-            if (totalBudgetMw > gpuMw) {
-                targetCpuWatts = (totalBudgetMw - gpuMw) / 1000;
-            }
-            else {
-                targetCpuWatts = config.cpuMinWatts;
-            }
+            if (config.enablePowerBalancing) {
+                gpuMw = gpu.GetPowerMilliWatts();
+                DWORD targetCpuWatts;
 
-            if (targetCpuWatts < config.cpuMinWatts) targetCpuWatts = config.cpuMinWatts;
-            if (targetCpuWatts > config.cpuMaxWatts) targetCpuWatts = config.cpuMaxWatts;
-
-            if (targetCpuWatts != currentAppliedCpuLimit) {
-                if (cpu.SetPackagePowerLimits(targetCpuWatts)) {
-                    currentAppliedCpuLimit = targetCpuWatts;
-                    LogFast("Shifted -> CPU Target: %luW | GPU Measured: %u.%03uW",
-                        targetCpuWatts, gpuMw / 1000, gpuMw % 1000);
+                if (totalBudgetMw > gpuMw) {
+                    targetCpuWatts = (totalBudgetMw - gpuMw) / 1000;
                 }
+                else {
+                    targetCpuWatts = config.cpuMinWatts;
+                }
+
+                if (targetCpuWatts < config.cpuMinWatts) targetCpuWatts = config.cpuMinWatts;
+                if (targetCpuWatts > config.cpuMaxWatts) targetCpuWatts = config.cpuMaxWatts;
+
+                if (targetCpuWatts != currentAppliedCpuLimit) {
+                    if (cpu.SetPackagePowerLimits(targetCpuWatts)) {
+                        currentAppliedCpuLimit = targetCpuWatts;
+                        LogFast("Shifted -> CPU Target: %luW | GPU Measured: %u.%03uW",
+                            targetCpuWatts, gpuMw / 1000, gpuMw % 1000);
+                    }
+                }
+
+                // Set polling rate based on GPU load if balancing is enabled
+                currentSleepTimeMs = (gpuMw < idleThresholdMw) ? config.idlePollingRateMs : config.pollingRateMs;
             }
 
             // --- 4. Adaptive Polling & Timer Coalescing ---
-            // If GPU wattage is below our threshold, drastically slow down the polling rate
-            DWORD currentSleepTimeMs = (gpuMw < idleThresholdMw) ? config.idlePollingRateMs : config.pollingRateMs;
-
             if (hTimer) {
                 LARGE_INTEGER dueTime;
-                // Convert milliseconds to 100-nanosecond intervals (negative for relative time)
                 dueTime.QuadPart = -(static_cast<LONGLONG>(currentSleepTimeMs) * 10000LL);
 
                 SetWaitableTimerEx(hTimer, &dueTime, 0, NULL, NULL, NULL, config.timerToleranceMs);
